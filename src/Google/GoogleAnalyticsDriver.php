@@ -1,4 +1,4 @@
-<?php declare(strict_types = 1);
+<?php declare(strict_types=1);
 
 namespace Dms\Package\Analytics\Google;
 
@@ -36,7 +36,7 @@ class GoogleAnalyticsDriver implements IAnalyticsDriver
     /**
      * @inheritDoc
      */
-    public function getName() : string
+    public function getName(): string
     {
         return 'google';
     }
@@ -44,7 +44,7 @@ class GoogleAnalyticsDriver implements IAnalyticsDriver
     /**
      * @inheritDoc
      */
-    public function getLabel() : string
+    public function getLabel(): string
     {
         return 'Google Analytics';
     }
@@ -52,7 +52,7 @@ class GoogleAnalyticsDriver implements IAnalyticsDriver
     /**
      * @inheritDoc
      */
-    public function getInstallationInstructions() : Html
+    public function getInstallationInstructions(): Html
     {
         return new Html(<<<HTML
 <p>This assumes you have a Google Analytics account set up for this site.</p>
@@ -61,13 +61,15 @@ class GoogleAnalyticsDriver implements IAnalyticsDriver
 
 <p>In the overview, go to "Analytics API" and click "Enable"</p>
 
-<p>Under the credentials page create a "service account key" and ensure you select "New service account" and choose the *.p12 file format.</p>
-
-<p>You will have to store the service account email and the private key (*.p12 file) and upload them here.</p>
+<p>Under the credentials page create a "service account key" and ensure you select "New service account" and choose the *.json file format.</p>
 
 <p>Now in <a href="https://analytics.google.com/" target="_blank">Google Analytics</a>, go to the "Admin" tab, select "View Settings" and copy the "View ID" here.</p>
 
 <p>Under "User Management" enter the service account's email with "Read and Analyse" permissions and click "Add".</p>
+
+<p>Copy the JSON file to the app server and define its path in the .env configuration file.</p>
+
+<p>DMS_GOOGLE_AUTH_FILE=/path/to/file.json</p>
 
 <p>Now you should be able to complete this form.</p>
 HTML
@@ -77,7 +79,7 @@ HTML
     /**
      * @return null|CacheItemPoolInterface
      */
-    public function getCache() : CacheItemPoolInterface
+    public function getCache(): CacheItemPoolInterface
     {
         return $this->cache;
     }
@@ -93,12 +95,12 @@ HTML
     /**
      * @inheritDoc
      */
-    public function getOptionsForm() : FormObject
+    public function getOptionsForm(): FormObject
     {
         return new GoogleAnalyticsForm();
     }
 
-    public function validate(FormObject $options) : bool
+    public function validate(FormObject $options): bool
     {
         /** @var GoogleAnalyticsForm $options */
         InvalidArgumentException::verifyInstanceOf(__METHOD__, 'options', $options, GoogleAnalyticsForm::class);
@@ -120,7 +122,7 @@ HTML
     /**
      * @inheritDoc
      */
-    public function getAnalyticsData(FormObject $options) : IAnalyticsData
+    public function getAnalyticsData(FormObject $options): IAnalyticsData
     {
         /** @var GoogleAnalyticsForm $options */
         InvalidArgumentException::verifyInstanceOf(__METHOD__, 'options', $options, GoogleAnalyticsForm::class);
@@ -135,24 +137,21 @@ HTML
      *
      * @return Google_Client
      */
-    protected function buildApiClient(GoogleAnalyticsForm $options) : Google_Client
+    protected function buildApiClient(GoogleAnalyticsForm $options): Google_Client
     {
-        $credentials = new \Google_Auth_AssertionCredentials(
-            $options->serviceAccountEmail,
-            [Google_Service_Analytics::ANALYTICS_READONLY],
-            base64_decode($options->privateKeyData)
-        );
-
         $client = new Google_Client();
+        $client->setAuthConfig(env('DMS_GOOGLE_AUTH_FILE'));
+        $client->setScopes([
+            Google_Service_Analytics::ANALYTICS_READONLY,
+        ]);
         $client->setApplicationName('dms.package.analytics');
         if ($this->cache) {
-            $client->setCache(new GooglePsr6CacheAdapter($client, $this->cache));
+            $client->setCache($this->cache);
         }
         $client->setAccessType('offline');
 
-        $client->setAssertionCredentials($credentials);
-        if ($client->getAuth()->isAccessTokenExpired()) {
-            $client->getAuth()->refreshTokenWithAssertion();
+        if ($client->isAccessTokenExpired()) {
+            $client->refreshTokenWithAssertion();
 
             return $client;
         }
@@ -163,7 +162,7 @@ HTML
     /**
      * @inheritDoc
      */
-    public function getEmbedCode(FormObject $options) : string
+    public function getEmbedCode(FormObject $options): string
     {
         /** @var GoogleAnalyticsForm $options */
         InvalidArgumentException::verifyInstanceOf(__METHOD__, 'options', $options, GoogleAnalyticsForm::class);
